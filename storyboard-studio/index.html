@@ -266,19 +266,23 @@
       renderScript();
     }
 
-    function renderScript() {
+    function renderScript(scrollToSelected = false) {
       const novel = state.novels.find(n => n.id === state.novelId);
       const ch = novel?.chapters.find(c => c.id === state.chapterId);
+      const leftPane = document.querySelector('.left-pane');
+      const prevScroll = leftPane ? leftPane.scrollTop : 0;
       scriptContainer.innerHTML = '';
       if (!ch) return;
 
       const slots = getChapterSlots();
       selectedInfo.textContent = `선택된 문단: #${state.selectedParaIdx + 1}`;
+      let selectedCard = null;
 
       ch.paragraphs.forEach((p, idx) => {
         const card = document.createElement('div');
         card.className = 'para-card' + (state.selectedParaIdx === idx ? ' selected' : '');
-        card.onclick = () => { state.selectedParaIdx = idx; renderScript(); };
+        if (state.selectedParaIdx === idx) selectedCard = card;
+        card.onclick = () => { state.selectedParaIdx = idx; renderScript(false); };
 
         const meta = document.createElement('div');
         meta.className = 'para-meta';
@@ -319,6 +323,13 @@
 
         scriptContainer.appendChild(card);
       });
+      if (leftPane) {
+        if (scrollToSelected && selectedCard) {
+          selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          leftPane.scrollTop = prevScroll;
+        }
+      }
       renderSummary();
     }
 
@@ -357,7 +368,10 @@
           if (!slots.some(s => s.paraIdx === state.selectedParaIdx && s.imageName === imgInfo.name)) {
             slots.push({ paraIdx: state.selectedParaIdx, imageName: imgInfo.name });
             setChapterSlots(slots);
-            renderScript();
+            renderScript(true);
+            statusText.textContent = `문단 #${state.selectedParaIdx + 1} 아래에 '${imgInfo.name}' 추가됨!`;
+          } else {
+            statusText.textContent = `이미 문단 #${state.selectedParaIdx + 1} 아래에 배치되어 있습니다.`;
           }
         };
 
