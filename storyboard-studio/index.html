@@ -151,7 +151,9 @@
     <label class="btn">+ 삽화 추가<input type="file" id="addImgInput" accept="image/*" multiple /></label>
     <button class="primary" id="saveBtn">매칭 저장</button>
     <button class="accent" id="copyBtn">배치표 복사</button>
+    <button id="shareBtn">공유 링크 복사</button>
     <button id="exportBtn">JSON 내보내기</button>
+    <label class="btn">JSON 가져오기<input type="file" id="importInput" accept=".json" /></label>
     <span class="status" id="statusText">불러오는 중...</span>
   </header>
 
@@ -213,6 +215,20 @@
         state.mapping = JSON.parse(localStorage.getItem(MAP_KEY) || '{}');
       } catch {
         state.mapping = {};
+      }
+      if (Object.keys(state.mapping).length === 0 && data.default_mapping) {
+        state.mapping = data.default_mapping;
+      }
+      if (location.hash.startsWith('#share=')) {
+        try {
+          const b64 = decodeURIComponent(location.hash.slice(7));
+          const jsonStr = decodeURIComponent(escape(atob(b64)));
+          const shared = JSON.parse(jsonStr);
+          state.mapping = { ...state.mapping, ...shared };
+          localStorage.setItem(MAP_KEY, JSON.stringify(state.mapping));
+        } catch (e) {
+          console.warn('Invalid share hash', e);
+        }
       }
       renderNovelSelect();
       renderGallery();
@@ -398,12 +414,34 @@
       statusText.textContent = '배치표를 클립보드에 복사했습니다!';
     };
 
+    document.getElementById('shareBtn').onclick = async () => {
+      const jsonStr = JSON.stringify(state.mapping);
+      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      const url = `${location.origin}${location.pathname}#share=${encodeURIComponent(b64)}`;
+      await navigator.clipboard.writeText(url);
+      statusText.textContent = '기기 간 동기화 공유 링크를 복사했습니다!';
+    };
+
     document.getElementById('exportBtn').onclick = () => {
       const blob = new Blob([JSON.stringify(state.mapping, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'storyboard_map.json';
       a.click();
+    };
+
+    document.getElementById('importInput').onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const imported = JSON.parse(await file.text());
+        state.mapping = { ...state.mapping, ...imported };
+        localStorage.setItem(MAP_KEY, JSON.stringify(state.mapping));
+        renderScript();
+        statusText.textContent = 'JSON 매칭 데이터를 불러와 저장했습니다!';
+      } catch {
+        statusText.textContent = '올바른 JSON 파일이 아닙니다.';
+      }
     };
 
     init();
