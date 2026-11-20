@@ -169,6 +169,9 @@
     <section class="pane right-pane">
       <div class="pane-title">
         <span>상황별 삽화 갤러리 (클릭해서 선택 문단 아래에 추가)</span>
+        <label style="font-weight:400; font-size:12px; color:#cbd5e1; cursor:pointer;">
+          <input type="checkbox" id="filterNovelChk" checked /> 현재 작품만 보기
+        </label>
       </div>
       <div class="summary-box" id="summaryBox">현재 회차에 연결된 삽화가 없습니다.</div>
       <div class="gallery-grid" id="galleryContainer"></div>
@@ -333,6 +336,11 @@
       renderSummary();
     }
 
+    function getImageLabel(name) {
+      const found = state.images.find(i => i.name === name);
+      return (found && found.label) ? found.label : name;
+    }
+
     function renderSummary() {
       const slots = [...getChapterSlots()].sort((a, b) => a.paraIdx - b.paraIdx);
       if (slots.length === 0) {
@@ -340,12 +348,17 @@
         return;
       }
       summaryBox.innerHTML = `<strong>현재 회차 배치 (${slots.length}장):</strong><br>` +
-        slots.map((s, i) => `${i + 1}. 문단 #${s.paraIdx + 1} 아래 → <code>${s.imageName}</code>`).join('<br>');
+        slots.map((s, i) => `${i + 1}. 문단 #${s.paraIdx + 1} 아래 → <b>${getImageLabel(s.imageName)}</b>`).join('<br>');
     }
 
     function renderGallery() {
       galleryContainer.innerHTML = '';
-      state.images.forEach(imgInfo => {
+      const filterByNovel = document.getElementById('filterNovelChk')?.checked;
+      const list = filterByNovel
+        ? state.images.filter(img => !img.novelId || img.novelId === state.novelId)
+        : state.images;
+
+      list.forEach(imgInfo => {
         const card = document.createElement('div');
         card.className = 'img-card';
 
@@ -358,7 +371,9 @@
 
         const name = document.createElement('div');
         name.className = 'img-name';
-        name.textContent = imgInfo.name;
+        name.style.fontWeight = '600';
+        name.style.color = '#f8fafc';
+        name.textContent = imgInfo.label || imgInfo.name;
 
         const btn = document.createElement('button');
         btn.className = 'primary';
@@ -369,7 +384,7 @@
             slots.push({ paraIdx: state.selectedParaIdx, imageName: imgInfo.name });
             setChapterSlots(slots);
             renderScript(true);
-            statusText.textContent = `문단 #${state.selectedParaIdx + 1} 아래에 '${imgInfo.name}' 추가됨!`;
+            statusText.textContent = `문단 #${state.selectedParaIdx + 1} 아래에 '${imgInfo.label || imgInfo.name}' 추가됨!`;
           } else {
             statusText.textContent = `이미 문단 #${state.selectedParaIdx + 1} 아래에 배치되어 있습니다.`;
           }
@@ -383,7 +398,8 @@
       });
     }
 
-    novelSelect.onchange = () => { state.novelId = novelSelect.value; state.chapterId = null; populateChapters(); };
+    document.getElementById('filterNovelChk').onchange = () => renderGallery();
+    novelSelect.onchange = () => { state.novelId = novelSelect.value; state.chapterId = null; populateChapters(); renderGallery(); };
     chapterSelect.onchange = () => { state.chapterId = chapterSelect.value; state.selectedParaIdx = 1; renderScript(); };
 
     document.getElementById('addScriptInput').onchange = async (e) => {
